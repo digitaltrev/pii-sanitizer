@@ -43,6 +43,9 @@ NON_PII_HINTS = [
 
 def _classify_one(header: str) -> dict:
     h = header.lower().strip()
+    for hint in NON_PII_HINTS:
+        if hint in h:
+            return {"is_pii": False, "category": "Non-PII"}
     for category, keywords in PII_RULES:
         for kw in keywords:
             if kw in h:

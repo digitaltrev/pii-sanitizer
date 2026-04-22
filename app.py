@@ -14,7 +14,7 @@ st.set_page_config(page_title="PII Sanitizer", layout="wide")
 
 ACTION_LABELS = {
     "keep": "Keep",
-    "encrypt": "Keep & Encrypt",
+    "encrypt": "Tokenize",
     "delete": "Delete",
     "synthetic": "Synthetic Data",
 }
