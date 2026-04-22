@@ -253,18 +253,20 @@ if uploaded:
         )
 
 # ── 3. Configure Columns ───────────────────────────────────────────────────
-if st.session_state.header_confirmed and st.session_state.classifications:
+
+@st.fragment
+def _configure_columns_section():
     st.header("3. Configure Columns")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.button("Delete All PII", on_click=_bulk, args=("delete",))
-    c2.button("Encrypt All PII", on_click=_bulk, args=("encrypt",))
+    c2.button("Tokenize All PII", on_click=_bulk, args=("encrypt",))
     c3.button("Synthetic All PII", on_click=_bulk, args=("synthetic",))
     c4.button("Reset to Defaults", on_click=_reset_all)
 
     editor_key = f"tbl_{st.session_state.table_version}"
     actions = _live_actions(editor_key)
-    st.session_state.actions.update(actions)  # keep session state in sync
+    st.session_state.actions.update(actions)
 
     styled = _style_df(_build_editor_df(actions), actions)
     st.data_editor(
@@ -313,3 +315,7 @@ if st.session_state.header_confirmed and st.session_state.classifications:
             file_name="sanitized_files.zip",
             mime="application/zip",
         )
+
+
+if st.session_state.header_confirmed and st.session_state.classifications:
+    _configure_columns_section()
