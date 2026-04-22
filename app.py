@@ -161,6 +161,25 @@ def _build_editor_df(actions: dict[str, str], show_samples: bool = False) -> pd.
     return pd.DataFrame(rows)
 
 
+ACTION_BG = {
+    "keep": "#d4edda",
+    "encrypt": "#cce5ff",
+    "delete": "#f8d7da",
+    "synthetic": "#fff3cd",
+}
+
+
+def _style_df(df: pd.DataFrame, actions: dict[str, str]):
+    cols = list(st.session_state.classifications.keys())
+
+    def row_colors(row):
+        col = cols[row.name] if row.name < len(cols) else None
+        bg = ACTION_BG.get(actions.get(col, "keep"), "") if col else ""
+        return [f"background-color: {bg}" for _ in row]
+
+    return df.style.apply(row_colors, axis=1)
+
+
 # ── app ────────────────────────────────────────────────────────────────────
 
 _init()
@@ -266,7 +285,7 @@ def _configure_columns_section():
         col_config["Sample Values"] = st.column_config.TextColumn("Sample Values", disabled=True)
 
     st.data_editor(
-        _build_editor_df(st.session_state.actions, show_samples),
+        _style_df(_build_editor_df(st.session_state.actions, show_samples), st.session_state.actions),
         use_container_width=True,
         hide_index=True,
         key=editor_key,
