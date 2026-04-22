@@ -19,12 +19,6 @@ ACTION_LABELS = {
     "synthetic": "Synthetic Data",
 }
 LABEL_TO_KEY = {v: k for k, v in ACTION_LABELS.items()}
-ACTION_BG = {
-    "keep": "#d4edda",
-    "encrypt": "#cce5ff",
-    "delete": "#f8d7da",
-    "synthetic": "#fff3cd",
-}
 SAMPLE_LEN = 28
 
 
@@ -152,28 +146,19 @@ def _live_actions(editor_key: str) -> dict[str, str]:
     return live
 
 
-def _build_editor_df(actions: dict[str, str]) -> pd.DataFrame:
+def _build_editor_df(actions: dict[str, str], show_samples: bool = False) -> pd.DataFrame:
     rows = []
     for col, info in st.session_state.classifications.items():
-        rows.append({
+        row = {
             "Column": col,
             "Action": ACTION_LABELS.get(actions.get(col, "keep"), "Keep"),
             "PII?": "Yes" if info["is_pii"] else "No",
             "Category": info["category"],
-            "Sample Values": st.session_state.samples.get(col, ""),
-        })
+        }
+        if show_samples:
+            row["Sample Values"] = st.session_state.samples.get(col, "")
+        rows.append(row)
     return pd.DataFrame(rows)
-
-
-def _style_df(df: pd.DataFrame, actions: dict[str, str]):
-    cols = list(st.session_state.classifications.keys())
-
-    def row_colors(row):
-        col = cols[row.name] if row.name < len(cols) else None
-        bg = ACTION_BG.get(actions.get(col, "keep"), "") if col else ""
-        return [f"background-color: {bg}" for _ in row]
-
-    return df.style.apply(row_colors, axis=1)
 
 
 # ── app ────────────────────────────────────────────────────────────────────
@@ -264,48 +249,38 @@ def _configure_columns_section():
     c3.button("Synthetic All PII", on_click=_bulk, args=("synthetic",))
     c4.button("Reset to Defaults", on_click=_reset_all)
 
-    editor_key = f"tbl_{st.session_state.table_version}"
-    actions = _live_actions(editor_key)
-    st.session_state.actions.update(actions)
+    show_samples = st.toggle("Show sample values", value=False)
 
-    styled = _style_df(_build_editor_df(actions), actions)
+    editor_key = f"tbl_{st.session_state.table_version}"
+    col_config = {
+        "Column": st.column_config.TextColumn("Column", disabled=True),
+        "Action": st.column_config.SelectboxColumn(
+            "Action",
+            options=list(ACTION_LABELS.values()),
+            required=True,
+        ),
+        "PII?": st.column_config.TextColumn("PII?", disabled=True, width="small"),
+        "Category": st.column_config.TextColumn("Category", disabled=True),
+    }
+    if show_samples:
+        col_config["Sample Values"] = st.column_config.TextColumn("Sample Values", disabled=True)
+
     st.data_editor(
-        styled,
+        _build_editor_df(st.session_state.actions, show_samples),
         use_container_width=True,
         hide_index=True,
         key=editor_key,
-        column_config={
-            "Column": st.column_config.TextColumn("Column", disabled=True),
-            "Action": st.column_config.SelectboxColumn(
-                "Action",
-                options=list(ACTION_LABELS.values()),
-                required=True,
-            ),
-            "PII?": st.column_config.TextColumn("PII?", disabled=True, width="small"),
-            "Category": st.column_config.TextColumn("Category", disabled=True),
-            "Sample Values": st.column_config.TextColumn("Sample Values", disabled=True),
-        },
+        column_config=col_config,
     )
 
-    # ── 4. Preview ─────────────────────────────────────────────────────────
-    if st.session_state.files:
-        with st.expander("Preview (first file, 3 rows, transformations applied)"):
-            preview_result = process_files(
-                st.session_state.files[:1],
-                st.session_state.actions,
-                st.session_state.enc_key,
-            )
-            for name, df in preview_result.items():
-                st.caption(name)
-                st.dataframe(df.head(3), use_container_width=True)
-
-    # ── 5. Process & Download ───────────────────────────────────────────────
+    # ── 4. Process & Download ───────────────────────────────────────────────
     st.header("4. Process & Download")
     if st.button("Process Files", type="primary"):
+        actions = _live_actions(editor_key)
         with st.spinner("Processing…"):
             results = process_files(
                 st.session_state.files,
-                st.session_state.actions,
+                actions,
                 st.session_state.enc_key,
             )
             zip_bytes = build_zip(results)
